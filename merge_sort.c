@@ -105,79 +105,76 @@ int binary_search(int* array, int l, int r, int val) {
 
 }
 
-void parallel_merge(merge* chunk) {
-    if (chunk->l_size < chunk->m || chunk->r_size < chunk->m) {
-        merger(chunk);
-    } else {
-        int left_value = chunk->left[chunk->l_size / 2];
-        int right_pos = binary_search(chunk->right, 0, chunk->r_size, left_value);
 
-        merge left_chunk;left_chunk.l_size = chunk->l_size / 2;
-        left_chunk.r_size = right_pos;
-        left_chunk.left = chunk->left;
-        left_chunk.right = chunk->right;
-        left_chunk.dest = chunk->dest;
-        left_chunk.tmp = chunk->tmp;
-        left_chunk.m = chunk->m;
-
-        merge right_chunk;
-        right_chunk.l_size = chunk->l_size - chunk->l_size / 2;
-        right_chunk.r_size = chunk->r_size - right_pos;
-        right_chunk.left = chunk->left + chunk->l_size / 2;
-        right_chunk.right = chunk->right + right_pos;
-        right_chunk.dest = chunk->dest + chunk->l_size / 2 + right_pos;
-        right_chunk.tmp = chunk->tmp + chunk->l_size / 2 + right_pos;
-        right_chunk.m = chunk->m;
-
-#pragma omp parallel sections
-        {
-#pragma omp section
-            parallel_merge(&left_chunk);
-
-#pragma omp section
-            parallel_merge(&right_chunk);
+void mergerr(int* array, int* second_array, int left1, int right1, int left2, int right2, int index) {
+    int l = left1;
+    int r = left2;
+    while (l < right1 && r < right2) {
+        if (array[l] < array[r]) {
+            second_array[index] = array[l];
+            l++;
+        } else {
+            second_array[index] = array[r];
+            r++;
         }
+        index++;
+    }
+    while (l < right1) {
+        second_array[index] = array[l];
+        l++;
+        index++;
+    }
+    while (r < right2) {
+        second_array[index] = array[r];
+        r++;
+        index++;
     }
 }
 
-void parallel_merge_sort(sort_par* par) {
-    if (par->n <= par->m) {
-        qsort(par->array, par->n, sizeof(int), cmp);
+void paralell_merge_sort(int* array, int* second_array, int left, int right, int m) {
+    if (right - left <= m) {
+        qsort(&array[left], right - left, sizeof(int), cmp);
     } else {
-        int mid = par->n / 2;
 
-        sort_par left_par;
-        left_par.n = mid;
-        left_par.m = par->m;
-        left_par.array = par->array;
-        left_par.tmp = par->tmp;
+        int mid = (right + left) / 2;
 
-        sort_par right_par;
-        right_par.n = par->n - mid;
-        right_par.m = par->m;
-        right_par.array = par->array + mid;
-        right_par.tmp = par->tmp + mid;
-
-#pragma omp parallel sections
+#pragma omp parallel
         {
-#pragma omp section
-            parallel_merge_sort(&left_par);
-
-#pragma omp section
-            parallel_merge_sort(&right_par);
+#pragma omp single
+            {
+#pragma omp task
+                {
+                    paralell_merge_sort(array, second_array, left, mid, m);
+                }
+#pragma omp task
+                {
+                    paralell_merge_sort(array, second_array, mid, right, m);
+                }
+#pragma omp taskwait
+            }
         }
 
-        merge curr_merge;
-        curr_merge.l_size = mid;
-        curr_merge.r_size = par->n - mid;
-        curr_merge.left = par->array;
-        curr_merge.right = par->array + mid;
-        curr_merge.dest = par->array;
-        curr_merge.tmp = par->tmp;
-        curr_merge.m =par->m;
-        
-        parallel_merge(&curr_merge);
-        memcpy(par->array, curr_merge.dest, sizeof(int) * par->n);
+        int left_mid = (left + mid) / 2;
+        int right_mid = binary_search(array, mid, right, array[left_mid]);
+
+        second_array[left_mid + right_mid - mid] = array[left_mid];
+
+#pragma omp parallel
+        {
+#pragma omp single
+            {
+#pragma omp task
+                {
+                    mergerr(array, second_array, left, left_mid, mid, right_mid, left);
+                }
+#pragma omp task
+                {
+                    mergerr(array, second_array, left_mid + 1, mid, right_mid, right, left_mid + right_mid - mid + 1);
+                }
+#pragma omp taskwait
+            }
+        }
+        memcpy(&array[left], &second_array[left], sizeof(int) * (right - left));
     }
 }
 
@@ -190,6 +187,8 @@ int main(int argc, char** argv) {
     int n = atoi(argv[1]);
     int m = atoi(argv[2]);
     int P = atoi(argv[3]);
+
+    srand(time(NULL));
     omp_set_num_threads(P);
 
     int* ar = (int*) malloc(n * sizeof(int));
@@ -197,12 +196,14 @@ int main(int argc, char** argv) {
 
     FILE* data = fopen("data.txt", "w");
     fprintf(data, "Not sorted: \n");
-    srand(time(NULL));
+
     for (int i = 0; i < n; i++) {
         ar[i] = rand();
         fprintf(data, "%d ", ar[i]);
     }
     fprintf(data, "\n");
+
+    memcpy(tmp, ar, n * sizeof(int));
 
     sort_par par = {
             .n = n,
@@ -215,7 +216,7 @@ int main(int argc, char** argv) {
     if (P == 1) {
         merge_sort(&par);
     } else {
-        parallel_merge_sort(&par);
+        paralell_merge_sort(ar, tmp, 0, n, m);
     }
     double end = omp_get_wtime();
     double work_time = end - start;
