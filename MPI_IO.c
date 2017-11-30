@@ -35,10 +35,10 @@ void generate_points(mpi_data* par){
     free(seeds);
 
     srand(time(NULL));
-    for (int i = 0; i < ctx->N; ++i) {
-        ctx->points_arr[i].x = rand_r(&seed) % ctx->l;
-        ctx->points_arr[i].y = rand_r(&seed) % ctx->l;
-        ctx->points_arr[i].r = rand_r(&seed) % (ctx->a * ctx->b);
+    for (int i = 0; i < par->N; ++i) {
+        par->points[i].x = rand_r(&seed) % par->l;
+        par->points[i].y = rand_r(&seed) % par->l;
+        par->points[i].r = rand_r(&seed) % (par->a * par->b);
     }
 };
 
