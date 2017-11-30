@@ -62,32 +62,29 @@ void merge_sort(sort_par* par) {
     } else {
         int mid = par->n / 2;
 
-        sort_par left_par = {
-                .n = mid,
-                .m = par->m,
-                .array = par->array,
-                .tmp = par->tmp,
-        };
+       sort_par left_par;
+        left_par.n = mid;
+        left_par.m = par->m;
+        left_par.array = par->array;
+        left_par.tmp = par->tmp;
 
-        sort_par right_par = {
-                .n = par->n - mid,
-                .m = par->m,
-                .array = par->array + mid,
-                .tmp = par->tmp + mid,
-        };
+        sort_par right_par;
+        right_par.n = par->n - mid;
+        right_par.m = par->m;
+        right_par.array = par->array + mid;
+        right_par.tmp = par->tmp + mid;
 
         merge_sort(&left_par);
         merge_sort(&right_par);
 
-        merge curr_merge = {
-                .l_size = mid,
-                .r_size = par->n - mid,
-                .left = par->array,
-                .right = par->array + mid,
-                .dest = par->array,
-                .tmp = par->tmp,
-                .m = par->m,
-        };
+        merge curr_merge;
+        curr_merge.l_size = mid;
+        curr_merge.r_size = par->n - mid;
+        curr_merge.left = par->array;
+        curr_merge.right = par->array + mid;
+        curr_merge.dest = par->array;
+        curr_merge.tmp = par->tmp;
+        curr_merge.m =par->m;
 
         merger(&curr_merge);
     }
